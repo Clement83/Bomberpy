@@ -1,0 +1,13 @@
+{
+    "runOnSave.statusMessageTimeout": 3000,
+    "runOnSave.commands": [
+        {
+            "match": "bomber.py$",
+            "command": "C:/Users/qclem/Documents/gamebuino/Bomberpy/run.bat",
+            "runIn": "backend",
+            "runningStatusMessage": "Compiling ${fileBasename}",
+            "finishStatusMessage": "${fileBasename} compiled"
+        }
+    ],
+    "python.pythonPath": "C:\\Users\\qclem\\AppData\\Local\\Programs\\Python\\Python37-32\\python.exe"
+}
