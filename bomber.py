@@ -181,6 +181,8 @@ def drawFlame(flame):
 
 def updateFlame(flame):
     destroyWall(flame)
+    #if getValueToMap(flame.posX, flame.posY) == MAP_WALL_BREAKABLE:
+        #flame.iteration = flame.maxIteration
     if flame.timeFlame == FLAME_TIME_TO_LIVE and flame.maxIteration > flame.iteration:
         nextIteration = flame.iteration + 1
         if flame.direction == MOVE_DOWN or flame.direction == IDLE and canBurn(flame, flame.posX + 8, flame.posY):
@@ -216,7 +218,7 @@ def initBombe(x, y):
     bombe.timeActive = 0
     acivateBombe(bombe, x // 8 * 8, y // 8 * 8)
     bombes.append(bombe)
-    setValueToMap(x,y, MAP_BOMBE)
+    setValueToMap(x, y, MAP_BOMBE)
 
 def isAliveBombe(bombe):
     return bombe.timeActive>0
