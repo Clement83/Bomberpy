@@ -4,13 +4,13 @@ from micropython import const
 SCREEN_WIDTH  = const(80)
 SCREEN_HEIGHT = const(64)
 
-COLOR_BG      = const(color.BROWN)
-COLOR_WALL    = const(color.BLACK)
-COLOR_WALL_2  = const(color.DARKGRAY)
-COLOR_PLAYER1 = const(color.PURPLE)
-COLOR_BOMBE = const(color.PINK)
-COLOR_BOMBE_ALT = const(color.RED)
-COLOR_FLAME = const(color.YELLOW)
+COLOR_BG      = color.BROWN
+COLOR_WALL    = color.BLACK
+COLOR_WALL_2  = color.DARKGRAY
+COLOR_PLAYER1 = color.PURPLE
+COLOR_BOMBE = color.PINK
+COLOR_BOMBE_ALT = color.RED
+COLOR_FLAME = color.YELLOW
 
 ELEMENT_COTE = const(8)
 
@@ -52,181 +52,210 @@ class Entity:
     def __init__(self, x, y):
         self.posX = x
         self.posY = y
-    
-    def isInMap(self, x, y):
-        if x < 0:
-            return False
-        if x + ELEMENT_COTE > SCREEN_WIDTH:
-            return False
-        if y < 0:
-            return False
-        if y + ELEMENT_COTE > SCREEN_HEIGHT:
-            return False
-
-class Player(Entity):
-
-    def __init__(self, x, y):
-        Entity.__init__(self, x, y)
-        self.nexDir = IDLE
-        self.currentDir = IDLE
-
-    def update(self):
-        self.handleButtons()
-        self.move()
-
-    def draw(self):
-        display.setColor(COLOR_PLAYER1)
-        display.fillRect(self.posX, self.posY, ELEMENT_COTE, ELEMENT_COTE)
-    
-    def move(self):
-        nextX = self.posX
-        nextY = self.posY
-        nextCaseX = self.posX
-        nextCaseY = self.posY
-
-        if self.currentDir == IDLE:
-            self.currentDir = self.nexDir
-            self.nexDir = IDLE
-
-        if self.currentDir == MOVE_RIGHT:
-            nextX += MOVE_SPEED
-            nextCaseX += 8
-
-        if self.currentDir == MOVE_LEFT:
-            nextX -= MOVE_SPEED
-            nextCaseX = nextX
-            
-        if self.currentDir == MOVE_UP:
-            nextY -= MOVE_SPEED
-            nextCaseY = nextY
-            
-        if self.currentDir == MOVE_DOWN:
-            nextY += MOVE_SPEED
-            nextCaseY += 8
         
-        if self.canMove(nextX, nextY, nextCaseX, nextCaseY):
-            self.posX = nextX
-            self.posY = nextY
-            if (self.currentDir == MOVE_LEFT or self.currentDir == MOVE_RIGHT) and nextX % ELEMENT_COTE == 0:
-                self.currentDir = IDLE
-            if (self.currentDir == MOVE_UP or self.currentDir == MOVE_DOWN) and nextY % ELEMENT_COTE == 0:
-                self.currentDir = IDLE
-        else:
-            self.currentDir = IDLE
-            self.nexDir = IDLE
-
-    def canMove(self, x, y, xNextCase, yNextCase):
-        
-        if self.isInMap(x, y) == False:
-            return False
-
-        if map[(yNextCase//8)][(xNextCase//8)] != MAP_VOID:
-            return False
-
-        return True
-
-    def handleButtons(self):
-        if buttons.repeat(buttons.LEFT, 0):
-            self.nexDir = MOVE_LEFT
-        elif buttons.repeat(buttons.RIGHT, 0):
-            self.nexDir = MOVE_RIGHT
-        elif buttons.repeat(buttons.UP, 0):
-            self.nexDir = MOVE_UP
-        elif buttons.repeat(buttons.DOWN, 0):
-            self.nexDir = MOVE_DOWN
-        
-        if buttons.repeat(buttons.A, 5):
-            bombe = Bombe()
-            bombe.acivate(self.posX // 8 * 8, self.posY // 8 * 8)
-            bombes.append(bombe)
-
-class Flame(Entity):
-    def __init__(self, x, y, direction, maxIteration, iteration):
-        Entity.__init__(self, x, y)
-        self.timeFlame = FLAME_TIME_TO_LIVE
-        self.direction = direction
-        self.iteration = iteration
-        self.maxIteration = maxIteration
-    
-    def isAlive(self):
-        return self.timeFlame>0
-
-    def draw(self):
-        display.setColor(COLOR_FLAME)
-        display.fillRect(self.posX, self.posY, ELEMENT_COTE, ELEMENT_COTE)
-    
-    def update(self):
-        self.destroyWall()
-        if self.timeFlame == FLAME_TIME_TO_LIVE and self.maxIteration > self.iteration:
-            nextIteration = self.iteration + 1
-            if self.direction == MOVE_DOWN or self.direction == IDLE and \
-                 self.canBurn(self.posX + 8, self.posY):
-                    flames.append(Flame(self.posX + 8, self.posY, MOVE_DOWN, self.maxIteration, nextIteration))
-            
-            if self.direction == MOVE_UP or self.direction == IDLE and \
-                self.canBurn(self.posX + 8, self.posY):
-                    flames.append(Flame(self.posX - 8, self.posY, MOVE_UP, self.maxIteration, nextIteration))
-            
-            if self.direction == MOVE_RIGHT or self.direction == IDLE and \
-                self.canBurn(self.posX, self.posY + 8):
-                    flames.append(Flame(self.posX, self.posY + 8, MOVE_RIGHT, self.maxIteration, nextIteration))
-            
-            if self.direction == MOVE_LEFT or self.direction == IDLE and \
-                self.canBurn(self.posX, self.posY - 8):
-                    flames.append(Flame(self.posX, self.posY - 8, MOVE_LEFT, self.maxIteration, nextIteration))
-
-        if self.timeFlame>0:
-            self.timeFlame -= 1
-
-    def canBurn(self, x, y):
-        if self.isInMap(x, y) == False:
-            return False
-        return map[y//8][x//8] < MAP_WALL_UNBREAKABLE
-
-    def destroyWall(self):
-        indexX = self.posX // 8
-        indexY = self.posY // 8
-        if self.isInMap(indexX, indexY) and \
-             map[indexY][indexX] == MAP_WALL_BREAKABLE:
-                map[indexY][indexX] = MAP_VOID
-
-class Bombe(Entity):
-    def __init__(self):
-        Entity.__init__(self, 0, 0)
+        # bombe
         self.timeActive = 0
 
-    def isAlive(self):
-        return self.timeActive>0
-
-    def draw(self):
-        if self.timeActive > 0 :
-            if self.timeActive % 5 == 0:
-                display.setColor(COLOR_BOMBE)
-            else : 
-                display.setColor(COLOR_BOMBE_ALT)
-            halfElement = (ELEMENT_COTE//2)
-            display.fillCircle(self.posX+halfElement, self.posY+halfElement, halfElement)
+        # user 
+        self.nexDir = IDLE
+        self.currentDir = IDLE
+        
+        # flame
+        self.timeFlame = FLAME_TIME_TO_LIVE
+        self.direction = IDLE
+        self.iteration = 0
+        self.maxIteration = 0
     
-    def update(self) :
-        if self.timeActive > 0 :
-            self.timeActive -= 1
-        if self.timeActive == 0:
-            flames.append(Flame(self.posX, self.posY, IDLE, FLAME_MAX_ITERATION, 0))
+def isInMap(x, y):
+    if x < 0:
+        return False
+    if x + ELEMENT_COTE > SCREEN_WIDTH:
+        return False
+    if y < 0:
+        return False
+    if y + ELEMENT_COTE > SCREEN_HEIGHT:
+        return False
+    return True
 
-    def acivate(self, x, y):
-        self.posX = x
-        self.posY = y
-        self.timeActive = TIME_TO_BOOM
+def setValueToMap(x, y, value):
+    map[y//8][x//8] = value
 
+def getValueToMap(x, y):
+    return map[y//8][x//8]
+
+###################################################################################
+# ### Player
+# #################################################################################
+def initPlayer(x, y):
+    player = Entity(x, y)
+    player.nexDir = IDLE
+    player.currentDir = IDLE
+    players.append(player)
+
+def updatePlayer(player):
+    handleButtons(player)
+    movePlayer(player)
+
+def drawPlayer(player):
+    display.setColor(COLOR_PLAYER1)
+    display.fillRect(player.posX, player.posY, ELEMENT_COTE, ELEMENT_COTE)
+
+def movePlayer(player):
+    nextX = player.posX
+    nextY = player.posY
+    nextCaseX = player.posX
+    nextCaseY = player.posY
+
+    if player.currentDir == IDLE:
+        player.currentDir = player.nexDir
+        player.nexDir = IDLE
+
+    if player.currentDir == MOVE_RIGHT:
+        nextX += MOVE_SPEED
+        nextCaseX += 8
+
+    if player.currentDir == MOVE_LEFT:
+        nextX -= MOVE_SPEED
+        nextCaseX = nextX
+        
+    if player.currentDir == MOVE_UP:
+        nextY -= MOVE_SPEED
+        nextCaseY = nextY
+        
+    if player.currentDir == MOVE_DOWN:
+        nextY += MOVE_SPEED
+        nextCaseY += 8
+    
+    if canMovePlayer(player, nextX, nextY, nextCaseX, nextCaseY):
+        player.posX = nextX
+        player.posY = nextY
+        if (player.currentDir == MOVE_LEFT or player.currentDir == MOVE_RIGHT) and nextX % ELEMENT_COTE == 0:
+            player.currentDir = IDLE
+        if (player.currentDir == MOVE_UP or player.currentDir == MOVE_DOWN) and nextY % ELEMENT_COTE == 0:
+            player.currentDir = IDLE
+    else:
+        player.currentDir = IDLE
+        player.nexDir = IDLE
+
+def canMovePlayer(player, x, y, xNextCase, yNextCase):
+    
+    if isInMap(x, y) == False:
+        return False
+
+    if getValueToMap(xNextCase, yNextCase) >= MAP_WALL_BREAKABLE:
+        return False
+
+    return True
+
+def handleButtons(player):
+    if buttons.repeat(buttons.LEFT, 0):
+        player.nexDir = MOVE_LEFT
+    elif buttons.repeat(buttons.RIGHT, 0):
+        player.nexDir = MOVE_RIGHT
+    elif buttons.repeat(buttons.UP, 0):
+        player.nexDir = MOVE_UP
+    elif buttons.repeat(buttons.DOWN, 0):
+        player.nexDir = MOVE_DOWN
+    
+    if buttons.repeat(buttons.A, 5):
+        initBombe(player.posX, player.posY)
+
+###################################################################################
+# ### Flame
+# #################################################################################
+def initFlame(x, y, direction, maxIteration, iteration):
+    flame = Entity(x, y)
+    flame.timeFlame = FLAME_TIME_TO_LIVE
+    flame.direction = direction
+    flame.iteration = iteration
+    flame.maxIteration = maxIteration
+    flames.append(flame)
+    setValueToMap(x,y, MAP_FLAME)
+
+def isAliveFlame(flame):
+    return flame.timeFlame > 0
+
+def drawFlame(flame):
+    display.setColor(COLOR_FLAME)
+    display.fillRect(flame.posX, flame.posY, ELEMENT_COTE, ELEMENT_COTE)
+
+def updateFlame(flame):
+    destroyWall(flame)
+    if flame.timeFlame == FLAME_TIME_TO_LIVE and flame.maxIteration > flame.iteration:
+        nextIteration = flame.iteration + 1
+        if flame.direction == MOVE_DOWN or flame.direction == IDLE and canBurn(flame, flame.posX + 8, flame.posY):
+            initFlame(flame.posX + 8, flame.posY, MOVE_DOWN, flame.maxIteration, nextIteration)
+        
+        if flame.direction == MOVE_UP or flame.direction == IDLE and canBurn(flame, flame.posX - 8, flame.posY):
+            initFlame(flame.posX - 8, flame.posY, MOVE_UP, flame.maxIteration, nextIteration)
+        
+        if flame.direction == MOVE_RIGHT or flame.direction == IDLE and canBurn(flame, flame.posX, flame.posY + 8):
+            initFlame(flame.posX , flame.posY + 8, MOVE_RIGHT, flame.maxIteration, nextIteration)
+        
+        if flame.direction == MOVE_LEFT or flame.direction == IDLE and canBurn(flame, flame.posX, flame.posY - 8):
+            initFlame(flame.posX, flame.posY - 8, MOVE_LEFT, flame.maxIteration, nextIteration)
+
+    if flame.timeFlame>0:
+        flame.timeFlame -= 1
+
+def canBurn(flame, x, y):
+    if isInMap(x, y) == False:
+        return False
+    return getValueToMap(x,y) < MAP_WALL_UNBREAKABLE
+
+def destroyWall(flame):
+    if isInMap(flame.posX, flame.posY) and getValueToMap(flame.posX, flame.posY) == MAP_WALL_BREAKABLE:
+        setValueToMap(flame.posX, flame.posY, MAP_VOID)
+        flame.iteration = flame.maxIteration
+
+###################################################################################
+# ### Bombe
+# #################################################################################
+def initBombe(x, y):
+    bombe = Entity(0, 0)
+    bombe.timeActive = 0
+    acivateBombe(bombe, x // 8 * 8, y // 8 * 8)
+    bombes.append(bombe)
+    setValueToMap(x,y, MAP_BOMBE)
+
+def isAliveBombe(bombe):
+    return bombe.timeActive>0
+
+def drawBombe(bombe):
+    if bombe.timeActive > 0 :
+        if bombe.timeActive % 5 == 0:
+            display.setColor(COLOR_BOMBE)
+        else : 
+            display.setColor(COLOR_BOMBE_ALT)
+        halfElement = (ELEMENT_COTE//2)
+        display.fillCircle(bombe.posX+halfElement, bombe.posY+halfElement, halfElement)
+
+def updateBombe(bombe) :
+    if getValueToMap(bombe.posX, bombe.posY) == MAP_FLAME:
+       bombe.timeActive = 0 
+    if bombe.timeActive > 0 :
+        bombe.timeActive -= 1
+    if bombe.timeActive == 0:
+        initFlame(bombe.posX, bombe.posY, IDLE, FLAME_MAX_ITERATION, 0)
+
+def acivateBombe(bombe, x, y):
+    bombe.posX = x
+    bombe.posY = y
+    bombe.timeActive = TIME_TO_BOOM
+
+
+###################################################################################
+# ### Gmae engine
+# #################################################################################
 class GameEngine:
 
     def __init__(self):
-        players.append(Player(0, 0))
+        initPlayer(0,0)
 
     def draw(self):
         display.clear(COLOR_BG)
         for player in players:
- 	        player.draw()
+ 	        drawPlayer(player)
 
         for lineIndex in range(len(map)):
             for colIndex in range(len(map[lineIndex])):
@@ -238,25 +267,25 @@ class GameEngine:
                     display.fillRect(colIndex * ELEMENT_COTE, lineIndex * ELEMENT_COTE, ELEMENT_COTE, ELEMENT_COTE)
         
         for bombe in bombes:
- 	        bombe.draw()
+ 	        drawBombe(bombe)
         for flame in flames:
- 	        flame.draw()
+ 	        drawFlame(flame)
 
     def update(self):
         for player in players:
- 	        player.update()
+ 	        updatePlayer(player)
 
         for bombe in bombes:
-            if bombe.isAlive() == False:
+            if isAliveBombe(bombe) == False:
                 bombes.remove(bombe)
         for bombe in bombes:
-            bombe.update()
+            updateBombe(bombe)
         
         for flame in flames:
-            if flame.isAlive() == False:
+            if isAliveFlame(flame) == False:
                 flames.remove(flame)
         for flame in flames:
-            flame.update()
+            updateFlame(flame)
 
     def run(self):
         while True:
