@@ -1,4 +1,2 @@
-from bomber import GameEngine
-
-game = GameEngine()
-game.run()
+from bomber import run
+run()

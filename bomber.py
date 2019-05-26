@@ -1,5 +1,6 @@
 from gamebuino_meta import waitForUpdate, display, color, buttons
 from micropython import const
+from random import *
 
 SCREEN_WIDTH  = const(80)
 SCREEN_HEIGHT = const(64)
@@ -59,6 +60,7 @@ class Entity:
         # user 
         self.nexDir = IDLE
         self.currentDir = IDLE
+        self.ia = False
         
         # flame
         self.timeFlame = FLAME_TIME_TO_LIVE
@@ -86,14 +88,19 @@ def getValueToMap(x, y):
 ###################################################################################
 # ### Player
 # #################################################################################
-def initPlayer(x, y):
+def initPlayer(x, y, ia):
     player = Entity(x, y)
     player.nexDir = IDLE
     player.currentDir = IDLE
     players.append(player)
+    player.ia = ia
 
 def updatePlayer(player):
-    handleButtons(player)
+    if player.ia == False:
+        handleButtons(player)
+        
+    if player.ia == True:
+        moveIa(player)
     movePlayer(player)
 
 def drawPlayer(player):
@@ -147,6 +154,11 @@ def canMovePlayer(player, x, y, xNextCase, yNextCase):
 
     return True
 
+def moveIa(player):
+    player.nexDir = randint(1,4)
+    if randint(0,100) == 0:
+        initBombe(player.posX, player.posY)
+
 def handleButtons(player):
     if buttons.repeat(buttons.LEFT, 0):
         player.nexDir = MOVE_LEFT
@@ -170,7 +182,6 @@ def initFlame(x, y, direction, maxIteration, iteration):
     flame.iteration = iteration
     flame.maxIteration = maxIteration
     flames.append(flame)
-    setValueToMap(x,y, MAP_FLAME)
 
 def isAliveFlame(flame):
     return flame.timeFlame > 0
@@ -181,8 +192,9 @@ def drawFlame(flame):
 
 def updateFlame(flame):
     destroyWall(flame)
-    #if getValueToMap(flame.posX, flame.posY) == MAP_WALL_BREAKABLE:
-        #flame.iteration = flame.maxIteration
+    if getValueToMap(flame.posX, flame.posY) == MAP_WALL_BREAKABLE:
+        flame.iteration = flame.maxIteration
+    setValueToMap(flame.posX, flame.posY, MAP_FLAME)
     if flame.timeFlame == FLAME_TIME_TO_LIVE and flame.maxIteration > flame.iteration:
         nextIteration = flame.iteration + 1
         if flame.direction == MOVE_DOWN or flame.direction == IDLE and canBurn(flame, flame.posX + 8, flame.posY):
@@ -249,48 +261,47 @@ def acivateBombe(bombe, x, y):
 ###################################################################################
 # ### Gmae engine
 # #################################################################################
-class GameEngine:
 
-    def __init__(self):
-        initPlayer(0,0)
 
-    def draw(self):
-        display.clear(COLOR_BG)
-        for player in players:
- 	        drawPlayer(player)
+def draw():
+    display.clear(COLOR_BG)
+    for player in players:
+        drawPlayer(player)
 
-        for lineIndex in range(len(map)):
-            for colIndex in range(len(map[lineIndex])):
-                if map[lineIndex][colIndex] == MAP_WALL_BREAKABLE:
-                    display.setColor(COLOR_WALL)
-                    display.fillRect(colIndex * ELEMENT_COTE, lineIndex * ELEMENT_COTE, ELEMENT_COTE, ELEMENT_COTE)
-                elif map[lineIndex][colIndex] == MAP_WALL_UNBREAKABLE:
-                    display.setColor(COLOR_WALL_2)
-                    display.fillRect(colIndex * ELEMENT_COTE, lineIndex * ELEMENT_COTE, ELEMENT_COTE, ELEMENT_COTE)
-        
-        for bombe in bombes:
- 	        drawBombe(bombe)
-        for flame in flames:
- 	        drawFlame(flame)
+    for lineIndex in range(len(map)):
+        for colIndex in range(len(map[lineIndex])):
+            if map[lineIndex][colIndex] == MAP_WALL_BREAKABLE:
+                display.setColor(COLOR_WALL)
+                display.fillRect(colIndex * ELEMENT_COTE, lineIndex * ELEMENT_COTE, ELEMENT_COTE, ELEMENT_COTE)
+            elif map[lineIndex][colIndex] == MAP_WALL_UNBREAKABLE:
+                display.setColor(COLOR_WALL_2)
+                display.fillRect(colIndex * ELEMENT_COTE, lineIndex * ELEMENT_COTE, ELEMENT_COTE, ELEMENT_COTE)
+    
+    for bombe in bombes:
+        drawBombe(bombe)
+    for flame in flames:
+        drawFlame(flame)
 
-    def update(self):
-        for player in players:
- 	        updatePlayer(player)
+def update():
+    for player in players:
+        updatePlayer(player)
 
-        for bombe in bombes:
-            if isAliveBombe(bombe) == False:
-                bombes.remove(bombe)
-        for bombe in bombes:
-            updateBombe(bombe)
-        
-        for flame in flames:
-            if isAliveFlame(flame) == False:
-                flames.remove(flame)
-        for flame in flames:
-            updateFlame(flame)
+    for bombe in bombes:
+        if isAliveBombe(bombe) == False:
+            bombes.remove(bombe)
+    for bombe in bombes:
+        updateBombe(bombe)
+    
+    for flame in flames:
+        if isAliveFlame(flame) == False:
+            flames.remove(flame)
+    for flame in flames:
+        updateFlame(flame)
 
-    def run(self):
-        while True:
-            waitForUpdate()
-            self.update()
-            self.draw()
+def run():
+    initPlayer(0, 0, False)
+    initPlayer(72, 56, True)
+    while True:
+        waitForUpdate()
+        update()
+        draw()
